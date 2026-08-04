@@ -1,5 +1,5 @@
 // Sistema de Autenticação e Permissões - Leitores PRO
-// REGRA: admin = tudo | operador = somente testes.html
+// REGRA ATUALIZADA: admin = tudo | operador = testes.html + etiquetas.html
 (function(){
     const ADMIN_USER = 'admin';
     const ADMIN_PASS = '123';
@@ -67,8 +67,10 @@
         if(!s.logged) return requireLogin();
         const pagina = (window.location.pathname.split('/').pop()||'').toLowerCase();
         if(['login.html',''].includes(pagina)) return true;
+        // OPERADOR AGORA PODE: testes.html + etiquetas.html
+        const paginasOperador = ['testes.html','etiquetas.html'];
         if(s.role === 'operador'){
-            if(pagina !== 'testes.html'){
+            if(!paginasOperador.includes(pagina)){
                 window.location.href = 'testes.html';
                 return false;
             }
@@ -83,11 +85,12 @@
             el.innerHTML = s.nome + ' <span class="badge ' + (s.role==='admin'?'bg-danger':'bg-success') + ' ms-2" style="font-size:10px">' + s.role.toUpperCase() + '</span>';
         });
         if(s.role === 'operador'){
-            document.querySelectorAll('.sidebar a, .top-nav a, .menu-dropdown a, #mainTabs button').forEach(a=>{
-                const href = (a.getAttribute('href')||'').toLowerCase();
-                const txt = (a.textContent||'').toLowerCase();
-                const isEtiquetas = href.includes('etiquetas') || txt.includes('etiqueta') || a.id === 'btnTabEtiquetas';
-                if(isEtiquetas){ a.style.display='none'; }
+            // Esconde só dashboard/produtos/operadores/logs, MAS LIBERA etiquetas
+            document.querySelectorAll('.sidebar a').forEach(a=>{
+                const href=(a.getAttribute('href')||'').toLowerCase();
+                if(href.includes('index.html') || href.includes('produtos.html') || href.includes('operadores.html') || href.includes('logs.html') || href.includes('historico.html') || href.includes('relatorios.html')){
+                    const li=a.closest('li'); if(li) li.style.display='none'; else a.style.display='none';
+                }
             });
             document.querySelectorAll('[data-admin-only]').forEach(b=>b.style.display='none');
         }

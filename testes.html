@@ -749,9 +749,8 @@ function switchTab(nome){
 }
 let ultima = localStorage.getItem('aba_ativa');
 const sess = window.AuthSystem ? window.AuthSystem.getSession() : null;
-if(sess && sess.role==='operador' && ultima==='tabEtiquetas'){
-  ultima = null; // operador não pode abrir etiquetas
-}
+// OPERADOR AGORA PODE ACESSAR ETIQUETAS - não bloqueia mais
+
 if(ultima==='tabEtiquetas' && sess && sess.role==='admin') switchTab('etiquetas');
 setInterval(()=>{
   if(window._ultimoLog && window._ultimoLog.resultado==='APROVADO'){
@@ -768,7 +767,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     nomeEl.innerHTML = `${s.nome} <span class="badge ${s.role==='admin'?'bg-danger':'bg-success'}" style="font-size:10px">${s.role.toUpperCase()}</span>`;
   }
   if(s.role==='operador'){
-    document.querySelectorAll('[data-admin-only]').forEach(el=>el.style.display='none');
+    document.querySelectorAll('[data-admin-only]').forEach(el=>{ /* libera etiquetas para operador */ if(!el.hasAttribute('data-etiqueta-ok')) el.style.display='none'; });
     // trava seletor de operador no nome do logado
     const tryFill = ()=>{
       const sel = document.getElementById('operadorSelect') || document.getElementById('selectOperador') || document.querySelector('select[name="operador"]');
