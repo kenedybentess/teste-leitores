@@ -1,4 +1,4 @@
-const CACHE_NAME = 'el250-flash-v6-vinculado';
+const CACHE_NAME = 'el250-flash-v7-operador-etiquetas';
 const ASSETS = [
   './',
   './login.html',
