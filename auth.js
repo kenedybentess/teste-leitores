@@ -61,43 +61,36 @@
         }
         return true;
     }
-        function aplicarVisualPermissoes(){
+    function aplicarVisualPermissoes(){
         const s=getSession(); if(!s.logged) return;
         document.querySelectorAll('#nomeUsuario, #userName, .user-name-display, #nomeUsuarioTeste').forEach(el=>{
             el.innerHTML=s.nome+' <span class="badge '+(s.role==='admin'?'bg-danger':'bg-success')+' ms-2" style="font-size:10px">'+s.role.toUpperCase()+'</span>';
         });
         if(s.role==='operador'){
             // Operador: esconde APENAS dashboard/produtos/operadores/logs - MANTÉM testes e etiquetas
-            document.querySelectorAll('.sidebar a, #mainTabs a, #mainTabs button').forEach(a=>{
-                if(a.hasAttribute('data-allow-operador')) return; // sempre visível para operador
+            document.querySelectorAll('.sidebar a').forEach(a=>{
                 const href=(a.getAttribute('href')||'').toLowerCase();
-                const txt=(a.textContent||'').toLowerCase();
-                const isEtiqueta = txt.includes('etiqueta') || href.includes('etiqueta') || (a.id||'').toLowerCase().includes('etiqueta');
-                if(isEtiqueta) return; // mantém etiquetas
                 if(href.includes('index.html')||href.includes('produtos.html')||href.includes('operadores.html')||href.includes('logs.html')||href.includes('historico.html')||href.includes('relatorios.html')){
                     const li=a.closest('li'); if(li) li.style.display='none'; else a.style.display='none';
                 }
-                // esconde Dashboard embutido
-                if(a.id==='linkDash') a.style.display='none';
             });
+            // NÃO esconde botões de teste - apenas botões marcados como admin-only que NÃO são de etiqueta
             document.querySelectorAll('[data-admin-only]').forEach(el=>{
-                if(el.hasAttribute('data-allow-operador')) return;
+                // se for botão de etiqueta, mantém
                 const txt=(el.textContent||'').toLowerCase();
                 const isEtiqueta = txt.includes('etiqueta') || el.id?.toLowerCase().includes('etiqueta');
-                if(isEtiqueta) return;
-                if(el.getAttribute('data-admin-only')==='true-strict') el.style.display='none';
-                // se for data-admin-only sem valor, esconde apenas se NÃO for etiqueta
-                if(!el.hasAttribute('data-allow-operador') && !isEtiqueta && el.id!=='btnTabEtiquetas'){
-                    // verifica se é botão crítico de dashboard
-                    const href=(el.getAttribute('href')||'').toLowerCase();
-                    if(href.includes('index.html') || el.id==='linkDash'){
-                        el.style.display='none';
-                    }
+                if(!isEtiqueta){
+                    // verifica se é botão crítico de teste
+                    if(el.hasAttribute('data-allow-operador')) return;
+                    // mantém todos os botões de teste visíveis para operador
+                    const isTesteBtn = el.closest && el.closest('.step-card') || el.classList.contains('btn-teste');
+                    if(isTesteBtn) return;
+                    // por enquanto NÃO esconde nada de teste, só admin puro
+                    if(el.getAttribute('data-admin-only')==='true-strict') el.style.display='none';
                 }
             });
         }
     }
-
     function logout(){ clearSession(); window.location.href='login.html'; }
     window.AuthSystem={getSession,tentarLogin,requireLogin,requirePermission,aplicarVisualPermissoes,logout,saveSession,clearSession};
     document.addEventListener('DOMContentLoaded',()=>{

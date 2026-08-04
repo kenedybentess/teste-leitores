@@ -168,7 +168,7 @@ body{background:#f4f6f9;display:flex;height:100vh;overflow:hidden}
         <div class="form-group">
             <label>2️⃣ Número de Série (do TESTE): <span class="badge-vinculo">AUTO</span></label>
             <select id="selectSerie" onchange="aoSelecionarSerie(this.value)"><option value="">-- Últimos testes --</option></select>
-            <input type="text" id="inputDataHidden" placeholder="Data DDMMYY" style="display:none">
+            <input type="text" id="inputData" placeholder="Data DDMMYY" style="display:none">
             <input type="text" id="inputSerie" style="margin-top:4px;font-weight:bold;letter-spacing:1px" oninput="dadosEtiqueta.serie=this.value; vincularTodos('serie', this.value)">
             <label style="display:block;font-size:11px;font-weight:bold;color:#555;margin-top:6px">📅 Data Fabricação (DDMMYY):</label>
             <input type="text" id="inputData" placeholder="Ex: 280726 ou 28/07/2026" style="margin-top:2px;font-weight:bold" oninput="dadosEtiqueta.data=this.value; vincularTodos('data', this.value)">
@@ -922,26 +922,18 @@ document.addEventListener('click', function(e){ const menu=document.querySelecto
 
 function exportarConfiguracoes(){
     try{
-        const wEl = document.getElementById('inputWidth');
-        const hEl = document.getElementById('inputHeight');
-        const estado = {elementos: elementos, idContador: idContador, dadosEtiqueta: dadosEtiqueta, largura: wEl? wEl.value:100, altura: hEl? hEl.value:75, versao: '3.0', data: new Date().toISOString(), descricao: `Etiqueta ${dadosEtiqueta.codigo||''} - ${new Date().toLocaleString('pt-BR')}`};
+        const estado = {elementos: elementos, idContador: idContador, dadosEtiqueta: dadosEtiqueta, largura: document.getElementById('inputWidth').value, altura: document.getElementById('inputHeight').value, versao: '3.0', data: new Date().toISOString(), descricao: `Etiqueta ${dadosEtiqueta.codigo||''} - ${new Date().toLocaleString('pt-BR')}`};
         const json = JSON.stringify(estado, null, 2);
         const blob = new Blob([json], {type:'application/json'});
-        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
+        a.href = URL.createObjectURL(blob);
         const nomeArquivo = `etiqueta_config_${(dadosEtiqueta.codigo||'geral').replace(/[^a-z0-9]/gi,'_')}_${new Date().toISOString().slice(0,10)}.json`;
         a.download = nomeArquivo;
-        document.body.appendChild(a);
         a.click();
-        setTimeout(()=>{ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
-        const stArq = document.getElementById('statusArquivo');
-        const stSave = document.getElementById('statusSave');
-        if(stArq) stArq.innerHTML = `<span style="color:#198754">✅ Exportado: ${nomeArquivo} (${(blob.size/1024).toFixed(1)} KB)</span>`;
-        if(stSave) stSave.innerText = `Arquivo exportado: ${nomeArquivo}`;
+        document.getElementById('statusArquivo').innerHTML = `<span style="color:#198754">✅ Exportado: ${nomeArquivo} (${(blob.size/1024).toFixed(1)} KB)</span>`;
+        document.getElementById('statusSave').innerText = `Arquivo exportado: ${nomeArquivo}`;
         localStorage.setItem('etiqueta_config_arquivo', json);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(estado));
-    }catch(e){ alert('Erro ao exportar: '+e.message); console.error(e); }
+    }catch(e){ alert('Erro ao exportar: '+e.message); }
 }
 function importarConfiguracoes(event){
     const file = event.target.files[0];
@@ -949,78 +941,30 @@ function importarConfiguracoes(event){
     const reader = new FileReader();
     reader.onload = function(e){
         try{
-            const raw = e.target.result;
-            let estado = JSON.parse(raw);
-            // Suporta formato antigo: array direto
-            if(Array.isArray(estado)){
-                estado = {elementos: estado, idContador: Math.max(...estado.map(x=>x.id||0),0)+1, dadosEtiqueta: dadosEtiqueta, largura: 100, altura: 75};
-            }
-            if(!estado.elementos || !Array.isArray(estado.elementos)){ 
-                // tenta achar em .config ou .etiqueta
-                if(estado.config && estado.config.elementos) estado = estado.config;
-                else throw new Error('Arquivo inválido: não contém elementos'); 
-            }
-            // Valida elementos
-            estado.elementos = estado.elementos.map((el,i)=>({
-                id: el.id || (i+1),
-                tipo: el.tipo || 'texto',
-                valor: el.valor || '',
-                x: parseFloat(el.x)||5,
-                y: parseFloat(el.y)||5,
-                w: parseFloat(el.w)||20,
-                h: parseFloat(el.h)||6,
-                ...el
-            }));
-            const msg = `Importar configuração?\n\nArquivo: ${file.name}\nElementos: ${estado.elementos.length}\nData: ${estado.data ? new Date(estado.data).toLocaleString('pt-BR') : 'N/A'}\nVersão: ${estado.versao||'antiga'}\n\nIsso vai substituir a etiqueta atual.`;
-            if(confirm(msg)){
+            const estado = JSON.parse(e.target.result);
+            if(!estado.elementos || !Array.isArray(estado.elementos)){ throw new Error('Arquivo inválido: não contém elementos'); }
+            if(confirm(`Importar configuração?\n\nArquivo: ${file.name}\nElementos: ${estado.elementos.length}\nData: ${estado.data ? new Date(estado.data).toLocaleString('pt-BR') : 'N/A'}\n\nIsso vai substituir a etiqueta atual.`)){
                 elementos = estado.elementos;
-                // calcula idContador seguro
-                let maxId = 0;
-                try{ maxId = Math.max(...elementos.map(el=> parseInt(el.id)||0), 0); }catch{ maxId=0; }
-                idContador = parseInt(estado.idContador) || (maxId + 1) || 10;
-                if(estado.dadosEtiqueta) dadosEtiqueta = {...dadosEtiqueta, ...estado.dadosEtiqueta};
-                
-                const wEl = document.getElementById('inputWidth');
-                const hEl = document.getElementById('inputHeight');
-                if(wEl && estado.largura) wEl.value = estado.largura;
-                if(hEl && estado.altura) hEl.value = estado.altura;
-                
-                const codEl = document.getElementById('inputCodProduto');
-                const descEl = document.getElementById('inputDescricao');
-                const eanEl = document.getElementById('inputEAN13');
-                const serieEl = document.getElementById('inputSerie');
-                const dataEl = document.getElementById('inputData');
-                if(codEl) codEl.value = dadosEtiqueta.codigo||'';
-                if(descEl) descEl.value = dadosEtiqueta.descricao||'';
-                if(eanEl) eanEl.value = dadosEtiqueta.ean13||'';
-                if(serieEl) serieEl.value = dadosEtiqueta.serie||'';
-                if(dataEl) dataEl.value = dadosEtiqueta.data||'';
-                
-                const estadoSalvar = {elementos, idContador, dadosEtiqueta, largura: wEl? wEl.value : 100, altura: hEl? hEl.value : 75, data: new Date().toISOString(), versao: '3.0'};
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(estadoSalvar));
-                localStorage.setItem('etiqueta_config_arquivo', JSON.stringify(estadoSalvar));
-                
-                garantirLogoElgin();
+                idContador = estado.idContador || (Math.max(...elementos.map(el=>el.id))+1) || 10;
+                dadosEtiqueta = estado.dadosEtiqueta || dadosEtiqueta;
+                if(estado.largura) document.getElementById('inputWidth').value = estado.largura;
+                if(estado.altura) document.getElementById('inputHeight').value = estado.altura;
+                document.getElementById('inputCodProduto').value = dadosEtiqueta.codigo||'';
+                document.getElementById('inputDescricao').value = dadosEtiqueta.descricao||'';
+                document.getElementById('inputEAN13').value = dadosEtiqueta.ean13||'';
+                document.getElementById('inputSerie').value = dadosEtiqueta.serie||'';
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(estado));
                 renderizarTudo();
-                
-                const stArq = document.getElementById('statusArquivo');
-                const stSave = document.getElementById('statusSave');
-                if(stArq) stArq.innerHTML = `<span style="color:#198754">✅ Importado de ${file.name}: ${elementos.length} elementos</span>`;
-                if(stSave) stSave.innerText = `Importado de ${file.name} em ${new Date().toLocaleString('pt-BR')}`;
-                
-                setTimeout(()=>{ try{ renderizarTudo(); }catch{} }, 100);
+                document.getElementById('statusArquivo').innerHTML = `<span style="color:#198754">✅ Importado de ${file.name}: ${elementos.length} elementos</span>`;
+                document.getElementById('statusSave').innerText = `Importado de ${file.name} em ${new Date().toLocaleString('pt-BR')}`;
             }
         }catch(err){
-            console.error(err);
-            alert('Erro ao importar: '+err.message + '\nVerifique se o arquivo é um JSON exportado pelo sistema.');
-            const stArq = document.getElementById('statusArquivo');
-            if(stArq) stArq.innerHTML = `<span style="color:#dc3545">❌ Erro: ${err.message}</span>`;
+            alert('Erro ao importar: '+err.message);
+            document.getElementById('statusArquivo').innerHTML = `<span style="color:#dc3545">❌ Erro: ${err.message}</span>`;
         }
     };
-    reader.onerror = function(){ alert('Erro ao ler arquivo'); };
     reader.readAsText(file);
-    // limpa input após um delay para não perder arquivo no onload
-    setTimeout(()=>{ event.target.value = ''; }, 500);
+    event.target.value = '';
 }
 function salvarNaRede(){
     try{
